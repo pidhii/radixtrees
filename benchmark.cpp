@@ -139,13 +139,13 @@ void print_speedup(const std::string& label, double radix_time, double set_time,
 }
 
 // Benchmark 1: Insert performance comparison
-void benchmark_insert_comparison() {
+void benchmark_insert_comparison(unsigned base_seed) {
   print_benchmark_header("BENCHMARK 1: INSERT PERFORMANCE COMPARISON");
   print_comparison_header();
   
   // Test 1.1: Insert random strings (10k, 5-20 chars)
   {
-    auto strings = generate_random_strings(10000, 5, 20);
+    auto strings = generate_random_strings(10000, 5, 20, base_seed);
     
     // RadixTree
     arxt::simple_node radix_root;
@@ -178,7 +178,7 @@ void benchmark_insert_comparison() {
   
   // Test 1.2: Insert prefixed strings (10k)
   {
-    auto strings = generate_prefixed_strings(10000);
+    auto strings = generate_prefixed_strings(10000, base_seed + 1);
     
     arxt::simple_node radix_root;
     BenchmarkTimer timer;
@@ -208,7 +208,7 @@ void benchmark_insert_comparison() {
   
   // Test 1.3: Insert short strings (10k, 3-8 chars)
   {
-    auto strings = generate_random_strings(10000, 3, 8);
+    auto strings = generate_random_strings(10000, 3, 8, base_seed + 2);
     
     arxt::simple_node radix_root;
     BenchmarkTimer timer;
@@ -238,7 +238,7 @@ void benchmark_insert_comparison() {
   
   // Test 1.4: Insert long strings (5k, 30-60 chars)
   {
-    auto strings = generate_random_strings(5000, 30, 60);
+    auto strings = generate_random_strings(5000, 30, 60, base_seed + 3);
     
     arxt::simple_node radix_root;
     BenchmarkTimer timer;
@@ -268,7 +268,7 @@ void benchmark_insert_comparison() {
   
   // Test 1.5: Large-scale insert (100k, 10-25 chars)
   {
-    auto strings = generate_random_strings(100000, 10, 25);
+    auto strings = generate_random_strings(100000, 10, 25, base_seed + 4);
     
     arxt::simple_node radix_root;
     BenchmarkTimer timer;
@@ -298,13 +298,13 @@ void benchmark_insert_comparison() {
 }
 
 // Benchmark 2: Find performance comparison (hit - strings in container)
-void benchmark_find_hit_comparison() {
+void benchmark_find_hit_comparison(unsigned base_seed) {
   print_benchmark_header("BENCHMARK 2: FIND PERFORMANCE COMPARISON (HIT - Strings Present)");
   print_comparison_header();
   
   // Test 2.1: Find in random strings (10k, 5-20 chars)
   {
-    auto strings = generate_random_strings(10000, 5, 20);
+    auto strings = generate_random_strings(10000, 5, 20, base_seed + 10);
     
     // Build containers
     arxt::simple_node radix_root;
@@ -351,7 +351,7 @@ void benchmark_find_hit_comparison() {
   
   // Test 2.2: Find in prefixed strings (10k)
   {
-    auto strings = generate_prefixed_strings(10000);
+    auto strings = generate_prefixed_strings(10000, base_seed + 11);
     
     arxt::simple_node radix_root;
     std::set<std::string> set_container;
@@ -394,7 +394,7 @@ void benchmark_find_hit_comparison() {
   
   // Test 2.3: Find in short strings (10k, 3-8 chars)
   {
-    auto strings = generate_random_strings(10000, 3, 8);
+    auto strings = generate_random_strings(10000, 3, 8, base_seed + 12);
     
     arxt::simple_node radix_root;
     std::set<std::string> set_container;
@@ -437,7 +437,7 @@ void benchmark_find_hit_comparison() {
   
   // Test 2.4: Find in large container (100k)
   {
-    auto strings = generate_random_strings(100000, 10, 25);
+    auto strings = generate_random_strings(100000, 10, 25, base_seed + 13);
     
     arxt::simple_node radix_root;
     std::set<std::string> set_container;
@@ -486,14 +486,14 @@ void benchmark_find_hit_comparison() {
 }
 
 // Benchmark 3: Find performance comparison (miss - strings NOT in container)
-void benchmark_find_miss_comparison() {
+void benchmark_find_miss_comparison(unsigned base_seed) {
   print_benchmark_header("BENCHMARK 3: FIND PERFORMANCE COMPARISON (MISS - Strings Missing)");
   print_comparison_header();
   
   // Test 3.1: Find missing in random tree (10k tree, 5k misses)
   {
-    auto tree_strings = generate_random_strings(10000, 5, 20, 42);
-    auto missing_strings = generate_missing_strings(tree_strings, 5000, 100);
+    auto tree_strings = generate_random_strings(10000, 5, 20, base_seed + 20);
+    auto missing_strings = generate_missing_strings(tree_strings, 5000, base_seed + 100);
     
     arxt::simple_node radix_root;
     std::set<std::string> set_container;
@@ -536,8 +536,8 @@ void benchmark_find_miss_comparison() {
   
   // Test 3.2: Find missing in prefixed tree
   {
-    auto tree_strings = generate_prefixed_strings(10000, 42);
-    auto missing_strings = generate_missing_strings(tree_strings, 5000, 200);
+    auto tree_strings = generate_prefixed_strings(10000, base_seed + 21);
+    auto missing_strings = generate_missing_strings(tree_strings, 5000, base_seed + 200);
     
     arxt::simple_node radix_root;
     std::set<std::string> set_container;
@@ -580,7 +580,7 @@ void benchmark_find_miss_comparison() {
   
   // Test 3.3: Find similar-prefix missing
   {
-    auto tree_strings = generate_prefixed_strings(10000, 42);
+    auto tree_strings = generate_prefixed_strings(10000, base_seed + 22);
     
     arxt::simple_node radix_root;
     std::set<std::string> set_container;
@@ -629,8 +629,8 @@ void benchmark_find_miss_comparison() {
   
   // Test 3.4: Find missing in large container (100k tree, 10k misses)
   {
-    auto tree_strings = generate_random_strings(100000, 10, 25, 42);
-    auto missing_strings = generate_missing_strings(tree_strings, 10000, 300);
+    auto tree_strings = generate_random_strings(100000, 10, 25, base_seed + 23);
+    auto missing_strings = generate_missing_strings(tree_strings, 10000, base_seed + 300);
     
     arxt::simple_node radix_root;
     std::set<std::string> set_container;
@@ -672,18 +672,49 @@ void benchmark_find_miss_comparison() {
   }
 }
 
-int main() {
+void print_usage(const char* program_name) {
+  std::cout << "Usage: " << program_name << " [SEED]\n\n";
+  std::cout << "Benchmark radix tree performance against STL containers.\n\n";
+  std::cout << "Arguments:\n";
+  std::cout << "  SEED    Random seed for reproducible results (default: 42)\n\n";
+  std::cout << "Examples:\n";
+  std::cout << "  " << program_name << "        # Run with default seed (42)\n";
+  std::cout << "  " << program_name << " 12345  # Run with seed 12345\n";
+}
+
+int main(int argc, char* argv[]) {
+  unsigned seed = 42;  // Default seed
+  
+  // Parse command-line arguments
+  if (argc > 1) {
+    if (std::string(argv[1]) == "-h" || std::string(argv[1]) == "--help") {
+      print_usage(argv[0]);
+      return 0;
+    }
+    
+    try {
+      seed = std::stoul(argv[1]);
+    } catch (...) {
+      std::cerr << "Error: Invalid seed value '" << argv[1] << "'\n";
+      std::cerr << "Seed must be a positive integer.\n\n";
+      print_usage(argv[0]);
+      return 1;
+    }
+  }
+  
   std::cout << "\n";
   std::cout << "╔══════════════════════════════════════════════════════════════════════════════════════════════╗\n";
   std::cout << "║                    RADIX TREE vs STL CONTAINERS BENCHMARK COMPARISON                         ║\n";
   std::cout << "╚══════════════════════════════════════════════════════════════════════════════════════════════╝\n";
+  std::cout << "  Using random seed: " << seed << " (for reproducible results)\n";
   
-  benchmark_insert_comparison();
-  benchmark_find_hit_comparison();
-  benchmark_find_miss_comparison();
+  benchmark_insert_comparison(seed);
+  benchmark_find_hit_comparison(seed);
+  benchmark_find_miss_comparison(seed);
   
   std::cout << "\n" << std::string(100, '=') << "\n";
   std::cout << "  Benchmark suite completed successfully!\n";
+  std::cout << "  Random seed used: " << seed << "\n";
   std::cout << "  Note: Speedup values > 1.0 indicate RadixTree is faster\n";
   std::cout << "        Speedup values < 1.0 indicate RadixTree is slower\n";
   std::cout << std::string(100, '=') << "\n\n";
