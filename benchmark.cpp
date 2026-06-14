@@ -127,6 +127,19 @@ void print_comparison_result(const std::string& test_name, double radix_time, do
             << "\n";
 }
 
+// Configuration for benchmark repetitions
+constexpr size_t BENCHMARK_REPETITIONS = 5;  // Number of times each test is repeated
+
+// Helper to run a benchmark multiple times and return average
+template<typename Func>
+double run_repeated_benchmark(Func&& func, size_t repetitions = BENCHMARK_REPETITIONS) {
+  double total_time = 0.0;
+  for (size_t i = 0; i < repetitions; ++i) {
+    total_time += func();
+  }
+  return total_time / repetitions;
+}
+
 void print_speedup(const std::string& label, double radix_time, double set_time, double unordered_time) {
   double vs_set = set_time / radix_time;
   double vs_unordered = unordered_time / radix_time;
@@ -673,17 +686,20 @@ void benchmark_find_miss_comparison(unsigned base_seed) {
 }
 
 void print_usage(const char* program_name) {
-  std::cout << "Usage: " << program_name << " [SEED]\n\n";
+  std::cout << "Usage: " << program_name << " [SEED] [REPETITIONS]\n\n";
   std::cout << "Benchmark radix tree performance against STL containers.\n\n";
   std::cout << "Arguments:\n";
-  std::cout << "  SEED    Random seed for reproducible results (default: 42)\n\n";
+  std::cout << "  SEED         Random seed for reproducible results (default: 42)\n";
+  std::cout << "  REPETITIONS  Number of times to repeat each test (default: " << BENCHMARK_REPETITIONS << ")\n\n";
   std::cout << "Examples:\n";
-  std::cout << "  " << program_name << "        # Run with default seed (42)\n";
-  std::cout << "  " << program_name << " 12345  # Run with seed 12345\n";
+  std::cout << "  " << program_name << "           # Run with defaults (seed=42, reps=" << BENCHMARK_REPETITIONS << ")\n";
+  std::cout << "  " << program_name << " 12345     # Run with seed 12345, default repetitions\n";
+  std::cout << "  " << program_name << " 42 10     # Run with seed 42, 10 repetitions\n";
 }
 
 int main(int argc, char* argv[]) {
   unsigned seed = 42;  // Default seed
+  size_t repetitions = BENCHMARK_REPETITIONS;  // Default repetitions
   
   // Parse command-line arguments
   if (argc > 1) {
@@ -702,11 +718,28 @@ int main(int argc, char* argv[]) {
     }
   }
   
+  if (argc > 2) {
+    try {
+      repetitions = std::stoul(argv[2]);
+      if (repetitions == 0) {
+        std::cerr << "Error: Repetitions must be at least 1\n\n";
+        print_usage(argv[0]);
+        return 1;
+      }
+    } catch (...) {
+      std::cerr << "Error: Invalid repetitions value '" << argv[2] << "'\n";
+      std::cerr << "Repetitions must be a positive integer.\n\n";
+      print_usage(argv[0]);
+      return 1;
+    }
+  }
+  
   std::cout << "\n";
   std::cout << "╔══════════════════════════════════════════════════════════════════════════════════════════════╗\n";
   std::cout << "║                    RADIX TREE vs STL CONTAINERS BENCHMARK COMPARISON                         ║\n";
   std::cout << "╚══════════════════════════════════════════════════════════════════════════════════════════════╝\n";
-  std::cout << "  Using random seed: " << seed << " (for reproducible results)\n";
+  std::cout << "  Random seed: " << seed << " (for reproducible results)\n";
+  std::cout << "  Repetitions: " << repetitions << " (each test runs " << repetitions << " times, results show average timing)\n";
   
   benchmark_insert_comparison(seed);
   benchmark_find_hit_comparison(seed);
