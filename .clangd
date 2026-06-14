@@ -1,0 +1,10 @@
+InlayHints:
+  Enabled: Yes
+  Designators: Yes
+  BlockEnd: No
+  ParameterNames: No
+  DeducedTypes: No
+  TypeNameLimit: 24
+
+CompileFlags:
+  Add: [-std=c++20]

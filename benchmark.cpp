@@ -1,0 +1,692 @@
+#include "arxt.hpp"
+
+#include <iostream>
+#include <vector>
+#include <cassert>
+#include <chrono>
+#include <random>
+#include <iomanip>
+#include <string>
+#include <algorithm>
+#include <set>
+#include <unordered_set>
+
+
+// Benchmark utilities
+class BenchmarkTimer {
+public:
+  using Clock = std::chrono::high_resolution_clock;
+  using TimePoint = Clock::time_point;
+  using Duration = std::chrono::duration<double, std::micro>;
+
+  void start() {
+    start_time = Clock::now();
+  }
+
+  double elapsed_microseconds() {
+    auto end_time = Clock::now();
+    return std::chrono::duration_cast<Duration>(end_time - start_time).count();
+  }
+
+private:
+  TimePoint start_time;
+};
+
+// Generate random strings for testing
+std::vector<std::string> generate_random_strings(size_t count, size_t min_len, size_t max_len, unsigned seed = 42) {
+  std::mt19937 rng(seed);
+  std::uniform_int_distribution<size_t> len_dist(min_len, max_len);
+  std::uniform_int_distribution<char> char_dist('a', 'z');
+  
+  std::vector<std::string> strings;
+  strings.reserve(count);
+  
+  for (size_t i = 0; i < count; ++i) {
+    size_t len = len_dist(rng);
+    std::string str;
+    str.reserve(len);
+    for (size_t j = 0; j < len; ++j) {
+      str += char_dist(rng);
+    }
+    strings.push_back(std::move(str));
+  }
+  
+  return strings;
+}
+
+// Generate strings with common prefixes for realistic testing
+std::vector<std::string> generate_prefixed_strings(size_t count, unsigned seed = 42) {
+  std::mt19937 rng(seed);
+  std::uniform_int_distribution<int> prefix_dist(0, 4);
+  std::uniform_int_distribution<size_t> suffix_len_dist(5, 15);
+  std::uniform_int_distribution<char> char_dist('a', 'z');
+  
+  std::vector<std::string> prefixes = {"user_", "data_", "config_", "temp_", "cache_"};
+  std::vector<std::string> strings;
+  strings.reserve(count);
+  
+  for (size_t i = 0; i < count; ++i) {
+    std::string str = prefixes[prefix_dist(rng)];
+    size_t suffix_len = suffix_len_dist(rng);
+    for (size_t j = 0; j < suffix_len; ++j) {
+      str += char_dist(rng);
+    }
+    strings.push_back(std::move(str));
+  }
+  
+  return strings;
+}
+
+// Generate strings that are NOT in the tree (for miss testing)
+std::vector<std::string> generate_missing_strings(const std::vector<std::string>& existing, size_t count, unsigned seed = 100) {
+  std::mt19937 rng(seed);
+  std::uniform_int_distribution<size_t> len_dist(5, 20);
+  std::uniform_int_distribution<char> char_dist('a', 'z');
+  
+  std::vector<std::string> missing;
+  missing.reserve(count);
+  
+  // Generate random strings and ensure they're not in existing set
+  while (missing.size() < count) {
+    size_t len = len_dist(rng);
+    std::string str;
+    str.reserve(len);
+    for (size_t j = 0; j < len; ++j) {
+      str += char_dist(rng);
+    }
+    
+    // Check if this string is not in existing (simple linear search for benchmark setup)
+    if (std::find(existing.begin(), existing.end(), str) == existing.end()) {
+      missing.push_back(std::move(str));
+    }
+  }
+  
+  return missing;
+}
+
+void print_benchmark_header(const std::string& title) {
+  std::cout << "\n" << std::string(100, '=') << "\n";
+  std::cout << "  " << title << "\n";
+  std::cout << std::string(100, '=') << "\n";
+}
+
+void print_comparison_header() {
+  std::cout << std::left << std::setw(45) << "Test"
+            << std::setw(18) << "RadixTree"
+            << std::setw(18) << "std::set"
+            << std::setw(18) << "std::unordered"
+            << "\n";
+  std::cout << std::string(100, '-') << "\n";
+}
+
+void print_comparison_result(const std::string& test_name, double radix_time, double set_time, double unordered_time) {
+  std::cout << std::left << std::setw(45) << test_name
+            << std::setw(18) << (std::to_string(static_cast<int>(radix_time)) + " μs")
+            << std::setw(18) << (std::to_string(static_cast<int>(set_time)) + " μs")
+            << std::setw(18) << (std::to_string(static_cast<int>(unordered_time)) + " μs")
+            << "\n";
+}
+
+void print_speedup(const std::string& label, double radix_time, double set_time, double unordered_time) {
+  double vs_set = set_time / radix_time;
+  double vs_unordered = unordered_time / radix_time;
+  
+  std::cout << std::left << std::setw(45) << ("  " + label)
+            << std::setw(18) << "1.00x"
+            << std::setw(18) << (std::to_string(vs_set).substr(0, 4) + "x")
+            << std::setw(18) << (std::to_string(vs_unordered).substr(0, 4) + "x")
+            << "\n";
+}
+
+// Benchmark 1: Insert performance comparison
+void benchmark_insert_comparison() {
+  print_benchmark_header("BENCHMARK 1: INSERT PERFORMANCE COMPARISON");
+  print_comparison_header();
+  
+  // Test 1.1: Insert random strings (10k, 5-20 chars)
+  {
+    auto strings = generate_random_strings(10000, 5, 20);
+    
+    // RadixTree
+    arxt::simple_node radix_root;
+    BenchmarkTimer timer;
+    timer.start();
+    for (const auto& str : strings) {
+      arxt::insert(&radix_root, str);
+    }
+    double radix_time = timer.elapsed_microseconds();
+    
+    // std::set
+    std::set<std::string> set_container;
+    timer.start();
+    for (const auto& str : strings) {
+      set_container.insert(str);
+    }
+    double set_time = timer.elapsed_microseconds();
+    
+    // std::unordered_set
+    std::unordered_set<std::string> unordered_container;
+    timer.start();
+    for (const auto& str : strings) {
+      unordered_container.insert(str);
+    }
+    double unordered_time = timer.elapsed_microseconds();
+    
+    print_comparison_result("Insert 10k random (5-20 chars)", radix_time, set_time, unordered_time);
+    print_speedup("Speedup vs RadixTree", radix_time, set_time, unordered_time);
+  }
+  
+  // Test 1.2: Insert prefixed strings (10k)
+  {
+    auto strings = generate_prefixed_strings(10000);
+    
+    arxt::simple_node radix_root;
+    BenchmarkTimer timer;
+    timer.start();
+    for (const auto& str : strings) {
+      arxt::insert(&radix_root, str);
+    }
+    double radix_time = timer.elapsed_microseconds();
+    
+    std::set<std::string> set_container;
+    timer.start();
+    for (const auto& str : strings) {
+      set_container.insert(str);
+    }
+    double set_time = timer.elapsed_microseconds();
+    
+    std::unordered_set<std::string> unordered_container;
+    timer.start();
+    for (const auto& str : strings) {
+      unordered_container.insert(str);
+    }
+    double unordered_time = timer.elapsed_microseconds();
+    
+    print_comparison_result("Insert 10k prefixed strings", radix_time, set_time, unordered_time);
+    print_speedup("Speedup vs RadixTree", radix_time, set_time, unordered_time);
+  }
+  
+  // Test 1.3: Insert short strings (10k, 3-8 chars)
+  {
+    auto strings = generate_random_strings(10000, 3, 8);
+    
+    arxt::simple_node radix_root;
+    BenchmarkTimer timer;
+    timer.start();
+    for (const auto& str : strings) {
+      arxt::insert(&radix_root, str);
+    }
+    double radix_time = timer.elapsed_microseconds();
+    
+    std::set<std::string> set_container;
+    timer.start();
+    for (const auto& str : strings) {
+      set_container.insert(str);
+    }
+    double set_time = timer.elapsed_microseconds();
+    
+    std::unordered_set<std::string> unordered_container;
+    timer.start();
+    for (const auto& str : strings) {
+      unordered_container.insert(str);
+    }
+    double unordered_time = timer.elapsed_microseconds();
+    
+    print_comparison_result("Insert 10k short (3-8 chars)", radix_time, set_time, unordered_time);
+    print_speedup("Speedup vs RadixTree", radix_time, set_time, unordered_time);
+  }
+  
+  // Test 1.4: Insert long strings (5k, 30-60 chars)
+  {
+    auto strings = generate_random_strings(5000, 30, 60);
+    
+    arxt::simple_node radix_root;
+    BenchmarkTimer timer;
+    timer.start();
+    for (const auto& str : strings) {
+      arxt::insert(&radix_root, str);
+    }
+    double radix_time = timer.elapsed_microseconds();
+    
+    std::set<std::string> set_container;
+    timer.start();
+    for (const auto& str : strings) {
+      set_container.insert(str);
+    }
+    double set_time = timer.elapsed_microseconds();
+    
+    std::unordered_set<std::string> unordered_container;
+    timer.start();
+    for (const auto& str : strings) {
+      unordered_container.insert(str);
+    }
+    double unordered_time = timer.elapsed_microseconds();
+    
+    print_comparison_result("Insert 5k long (30-60 chars)", radix_time, set_time, unordered_time);
+    print_speedup("Speedup vs RadixTree", radix_time, set_time, unordered_time);
+  }
+  
+  // Test 1.5: Large-scale insert (100k, 10-25 chars)
+  {
+    auto strings = generate_random_strings(100000, 10, 25);
+    
+    arxt::simple_node radix_root;
+    BenchmarkTimer timer;
+    timer.start();
+    for (const auto& str : strings) {
+      arxt::insert(&radix_root, str);
+    }
+    double radix_time = timer.elapsed_microseconds();
+    
+    std::set<std::string> set_container;
+    timer.start();
+    for (const auto& str : strings) {
+      set_container.insert(str);
+    }
+    double set_time = timer.elapsed_microseconds();
+    
+    std::unordered_set<std::string> unordered_container;
+    timer.start();
+    for (const auto& str : strings) {
+      unordered_container.insert(str);
+    }
+    double unordered_time = timer.elapsed_microseconds();
+    
+    print_comparison_result("Insert 100k random (10-25 chars)", radix_time, set_time, unordered_time);
+    print_speedup("Speedup vs RadixTree", radix_time, set_time, unordered_time);
+  }
+}
+
+// Benchmark 2: Find performance comparison (hit - strings in container)
+void benchmark_find_hit_comparison() {
+  print_benchmark_header("BENCHMARK 2: FIND PERFORMANCE COMPARISON (HIT - Strings Present)");
+  print_comparison_header();
+  
+  // Test 2.1: Find in random strings (10k, 5-20 chars)
+  {
+    auto strings = generate_random_strings(10000, 5, 20);
+    
+    // Build containers
+    arxt::simple_node radix_root;
+    std::set<std::string> set_container;
+    std::unordered_set<std::string> unordered_container;
+    
+    for (const auto& str : strings) {
+      arxt::insert(&radix_root, str);
+      set_container.insert(str);
+      unordered_container.insert(str);
+    }
+    
+    // Benchmark RadixTree
+    BenchmarkTimer timer;
+    timer.start();
+    size_t found = 0;
+    for (const auto& str : strings) {
+      if (arxt::find(&radix_root, str) != nullptr) found++;
+    }
+    double radix_time = timer.elapsed_microseconds();
+    assert(found == strings.size());
+    
+    // Benchmark std::set
+    timer.start();
+    found = 0;
+    for (const auto& str : strings) {
+      if (set_container.find(str) != set_container.end()) found++;
+    }
+    double set_time = timer.elapsed_microseconds();
+    assert(found == strings.size());
+    
+    // Benchmark std::unordered_set
+    timer.start();
+    found = 0;
+    for (const auto& str : strings) {
+      if (unordered_container.find(str) != unordered_container.end()) found++;
+    }
+    double unordered_time = timer.elapsed_microseconds();
+    assert(found == strings.size());
+    
+    print_comparison_result("Find 10k random (all present)", radix_time, set_time, unordered_time);
+    print_speedup("Speedup vs RadixTree", radix_time, set_time, unordered_time);
+  }
+  
+  // Test 2.2: Find in prefixed strings (10k)
+  {
+    auto strings = generate_prefixed_strings(10000);
+    
+    arxt::simple_node radix_root;
+    std::set<std::string> set_container;
+    std::unordered_set<std::string> unordered_container;
+    
+    for (const auto& str : strings) {
+      arxt::insert(&radix_root, str);
+      set_container.insert(str);
+      unordered_container.insert(str);
+    }
+    
+    BenchmarkTimer timer;
+    timer.start();
+    size_t found = 0;
+    for (const auto& str : strings) {
+      if (arxt::find(&radix_root, str) != nullptr) found++;
+    }
+    double radix_time = timer.elapsed_microseconds();
+    assert(found == strings.size());
+    
+    timer.start();
+    found = 0;
+    for (const auto& str : strings) {
+      if (set_container.find(str) != set_container.end()) found++;
+    }
+    double set_time = timer.elapsed_microseconds();
+    assert(found == strings.size());
+    
+    timer.start();
+    found = 0;
+    for (const auto& str : strings) {
+      if (unordered_container.find(str) != unordered_container.end()) found++;
+    }
+    double unordered_time = timer.elapsed_microseconds();
+    assert(found == strings.size());
+    
+    print_comparison_result("Find 10k prefixed (all present)", radix_time, set_time, unordered_time);
+    print_speedup("Speedup vs RadixTree", radix_time, set_time, unordered_time);
+  }
+  
+  // Test 2.3: Find in short strings (10k, 3-8 chars)
+  {
+    auto strings = generate_random_strings(10000, 3, 8);
+    
+    arxt::simple_node radix_root;
+    std::set<std::string> set_container;
+    std::unordered_set<std::string> unordered_container;
+    
+    for (const auto& str : strings) {
+      arxt::insert(&radix_root, str);
+      set_container.insert(str);
+      unordered_container.insert(str);
+    }
+    
+    BenchmarkTimer timer;
+    timer.start();
+    size_t found = 0;
+    for (const auto& str : strings) {
+      if (arxt::find(&radix_root, str) != nullptr) found++;
+    }
+    double radix_time = timer.elapsed_microseconds();
+    assert(found == strings.size());
+    
+    timer.start();
+    found = 0;
+    for (const auto& str : strings) {
+      if (set_container.find(str) != set_container.end()) found++;
+    }
+    double set_time = timer.elapsed_microseconds();
+    assert(found == strings.size());
+    
+    timer.start();
+    found = 0;
+    for (const auto& str : strings) {
+      if (unordered_container.find(str) != unordered_container.end()) found++;
+    }
+    double unordered_time = timer.elapsed_microseconds();
+    assert(found == strings.size());
+    
+    print_comparison_result("Find 10k short (all present)", radix_time, set_time, unordered_time);
+    print_speedup("Speedup vs RadixTree", radix_time, set_time, unordered_time);
+  }
+  
+  // Test 2.4: Find in large container (100k)
+  {
+    auto strings = generate_random_strings(100000, 10, 25);
+    
+    arxt::simple_node radix_root;
+    std::set<std::string> set_container;
+    std::unordered_set<std::string> unordered_container;
+    
+    for (const auto& str : strings) {
+      arxt::insert(&radix_root, str);
+      set_container.insert(str);
+      unordered_container.insert(str);
+    }
+    
+    // Sample 10k strings
+    std::vector<std::string> sample;
+    for (size_t i = 0; i < strings.size(); i += 10) {
+      sample.push_back(strings[i]);
+    }
+    
+    BenchmarkTimer timer;
+    timer.start();
+    size_t found = 0;
+    for (const auto& str : sample) {
+      if (arxt::find(&radix_root, str) != nullptr) found++;
+    }
+    double radix_time = timer.elapsed_microseconds();
+    assert(found == sample.size());
+    
+    timer.start();
+    found = 0;
+    for (const auto& str : sample) {
+      if (set_container.find(str) != set_container.end()) found++;
+    }
+    double set_time = timer.elapsed_microseconds();
+    assert(found == sample.size());
+    
+    timer.start();
+    found = 0;
+    for (const auto& str : sample) {
+      if (unordered_container.find(str) != unordered_container.end()) found++;
+    }
+    double unordered_time = timer.elapsed_microseconds();
+    assert(found == sample.size());
+    
+    print_comparison_result("Find 10k in 100k container", radix_time, set_time, unordered_time);
+    print_speedup("Speedup vs RadixTree", radix_time, set_time, unordered_time);
+  }
+}
+
+// Benchmark 3: Find performance comparison (miss - strings NOT in container)
+void benchmark_find_miss_comparison() {
+  print_benchmark_header("BENCHMARK 3: FIND PERFORMANCE COMPARISON (MISS - Strings Missing)");
+  print_comparison_header();
+  
+  // Test 3.1: Find missing in random tree (10k tree, 5k misses)
+  {
+    auto tree_strings = generate_random_strings(10000, 5, 20, 42);
+    auto missing_strings = generate_missing_strings(tree_strings, 5000, 100);
+    
+    arxt::simple_node radix_root;
+    std::set<std::string> set_container;
+    std::unordered_set<std::string> unordered_container;
+    
+    for (const auto& str : tree_strings) {
+      arxt::insert(&radix_root, str);
+      set_container.insert(str);
+      unordered_container.insert(str);
+    }
+    
+    BenchmarkTimer timer;
+    timer.start();
+    size_t not_found = 0;
+    for (const auto& str : missing_strings) {
+      if (arxt::find(&radix_root, str) == nullptr) not_found++;
+    }
+    double radix_time = timer.elapsed_microseconds();
+    assert(not_found == missing_strings.size());
+    
+    timer.start();
+    not_found = 0;
+    for (const auto& str : missing_strings) {
+      if (set_container.find(str) == set_container.end()) not_found++;
+    }
+    double set_time = timer.elapsed_microseconds();
+    assert(not_found == missing_strings.size());
+    
+    timer.start();
+    not_found = 0;
+    for (const auto& str : missing_strings) {
+      if (unordered_container.find(str) == unordered_container.end()) not_found++;
+    }
+    double unordered_time = timer.elapsed_microseconds();
+    assert(not_found == missing_strings.size());
+    
+    print_comparison_result("Find 5k missing (random)", radix_time, set_time, unordered_time);
+    print_speedup("Speedup vs RadixTree", radix_time, set_time, unordered_time);
+  }
+  
+  // Test 3.2: Find missing in prefixed tree
+  {
+    auto tree_strings = generate_prefixed_strings(10000, 42);
+    auto missing_strings = generate_missing_strings(tree_strings, 5000, 200);
+    
+    arxt::simple_node radix_root;
+    std::set<std::string> set_container;
+    std::unordered_set<std::string> unordered_container;
+    
+    for (const auto& str : tree_strings) {
+      arxt::insert(&radix_root, str);
+      set_container.insert(str);
+      unordered_container.insert(str);
+    }
+    
+    BenchmarkTimer timer;
+    timer.start();
+    size_t not_found = 0;
+    for (const auto& str : missing_strings) {
+      if (arxt::find(&radix_root, str) == nullptr) not_found++;
+    }
+    double radix_time = timer.elapsed_microseconds();
+    assert(not_found == missing_strings.size());
+    
+    timer.start();
+    not_found = 0;
+    for (const auto& str : missing_strings) {
+      if (set_container.find(str) == set_container.end()) not_found++;
+    }
+    double set_time = timer.elapsed_microseconds();
+    assert(not_found == missing_strings.size());
+    
+    timer.start();
+    not_found = 0;
+    for (const auto& str : missing_strings) {
+      if (unordered_container.find(str) == unordered_container.end()) not_found++;
+    }
+    double unordered_time = timer.elapsed_microseconds();
+    assert(not_found == missing_strings.size());
+    
+    print_comparison_result("Find 5k missing (prefixed)", radix_time, set_time, unordered_time);
+    print_speedup("Speedup vs RadixTree", radix_time, set_time, unordered_time);
+  }
+  
+  // Test 3.3: Find similar-prefix missing
+  {
+    auto tree_strings = generate_prefixed_strings(10000, 42);
+    
+    arxt::simple_node radix_root;
+    std::set<std::string> set_container;
+    std::unordered_set<std::string> unordered_container;
+    
+    for (const auto& str : tree_strings) {
+      arxt::insert(&radix_root, str);
+      set_container.insert(str);
+      unordered_container.insert(str);
+    }
+    
+    std::vector<std::string> similar_missing;
+    for (const auto& str : tree_strings) {
+      if (similar_missing.size() >= 5000) break;
+      similar_missing.push_back(str + "X");
+    }
+    
+    BenchmarkTimer timer;
+    timer.start();
+    size_t not_found = 0;
+    for (const auto& str : similar_missing) {
+      if (arxt::find(&radix_root, str) == nullptr) not_found++;
+    }
+    double radix_time = timer.elapsed_microseconds();
+    assert(not_found == similar_missing.size());
+    
+    timer.start();
+    not_found = 0;
+    for (const auto& str : similar_missing) {
+      if (set_container.find(str) == set_container.end()) not_found++;
+    }
+    double set_time = timer.elapsed_microseconds();
+    assert(not_found == similar_missing.size());
+    
+    timer.start();
+    not_found = 0;
+    for (const auto& str : similar_missing) {
+      if (unordered_container.find(str) == unordered_container.end()) not_found++;
+    }
+    double unordered_time = timer.elapsed_microseconds();
+    assert(not_found == similar_missing.size());
+    
+    print_comparison_result("Find 5k similar-prefix missing", radix_time, set_time, unordered_time);
+    print_speedup("Speedup vs RadixTree", radix_time, set_time, unordered_time);
+  }
+  
+  // Test 3.4: Find missing in large container (100k tree, 10k misses)
+  {
+    auto tree_strings = generate_random_strings(100000, 10, 25, 42);
+    auto missing_strings = generate_missing_strings(tree_strings, 10000, 300);
+    
+    arxt::simple_node radix_root;
+    std::set<std::string> set_container;
+    std::unordered_set<std::string> unordered_container;
+    
+    for (const auto& str : tree_strings) {
+      arxt::insert(&radix_root, str);
+      set_container.insert(str);
+      unordered_container.insert(str);
+    }
+    
+    BenchmarkTimer timer;
+    timer.start();
+    size_t not_found = 0;
+    for (const auto& str : missing_strings) {
+      if (arxt::find(&radix_root, str) == nullptr) not_found++;
+    }
+    double radix_time = timer.elapsed_microseconds();
+    assert(not_found == missing_strings.size());
+    
+    timer.start();
+    not_found = 0;
+    for (const auto& str : missing_strings) {
+      if (set_container.find(str) == set_container.end()) not_found++;
+    }
+    double set_time = timer.elapsed_microseconds();
+    assert(not_found == missing_strings.size());
+    
+    timer.start();
+    not_found = 0;
+    for (const auto& str : missing_strings) {
+      if (unordered_container.find(str) == unordered_container.end()) not_found++;
+    }
+    double unordered_time = timer.elapsed_microseconds();
+    assert(not_found == missing_strings.size());
+    
+    print_comparison_result("Find 10k missing in 100k container", radix_time, set_time, unordered_time);
+    print_speedup("Speedup vs RadixTree", radix_time, set_time, unordered_time);
+  }
+}
+
+int main() {
+  std::cout << "\n";
+  std::cout << "╔══════════════════════════════════════════════════════════════════════════════════════════════╗\n";
+  std::cout << "║                    RADIX TREE vs STL CONTAINERS BENCHMARK COMPARISON                         ║\n";
+  std::cout << "╚══════════════════════════════════════════════════════════════════════════════════════════════╝\n";
+  
+  benchmark_insert_comparison();
+  benchmark_find_hit_comparison();
+  benchmark_find_miss_comparison();
+  
+  std::cout << "\n" << std::string(100, '=') << "\n";
+  std::cout << "  Benchmark suite completed successfully!\n";
+  std::cout << "  Note: Speedup values > 1.0 indicate RadixTree is faster\n";
+  std::cout << "        Speedup values < 1.0 indicate RadixTree is slower\n";
+  std::cout << std::string(100, '=') << "\n\n";
+  
+  return 0;
+}

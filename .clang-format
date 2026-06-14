@@ -1,0 +1,28 @@
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+  BeforeElse: true
+  IndentBraces: false
+  AfterControlStatement: true
+  BeforeCatch: true
+
+SpaceBeforeCpp11BracedList: true
+IndentAccessModifiers: false
+AccessModifierOffset: 0
+SpaceBeforeInheritanceColon: false
+
+AlwaysBreakAfterReturnType: All
+
+ReflowComments: false
+
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+ColumnLimit: 80
+
+IndentCaseLabels: true
+
+ConstructorInitializerIndentWidth: 0
+PackConstructorInitializers: NextLine
+
+MaxEmptyLinesToKeep: 99999999
