@@ -11,10 +11,9 @@
 namespace arxt {
 
 struct simple_node {
-  std::vector<char> prefixes; // storage for child prefixes
   uint64_t bitmap[4] = {0, 0, 0, 0}; // 256 bits to track which children exist
   std::vector<uint8_t> child_chars; // first characters of each child (in order)
-  std::vector<std::pair<std::string_view, simple_node *>> children; // children
+  std::vector<std::pair<std::string, simple_node *>> children; // children
 
   ~simple_node()
   { for (const auto &[_, child] : children) delete child; }
@@ -55,9 +54,8 @@ struct simple_node {
   }
 
   void
-  reserve(size_t nchildren, size_t ndata)
+  reserve(size_t nchildren)
   {
-    prefixes.reserve(ndata);
     child_chars.reserve(nchildren);
     children.reserve(nchildren);
   }
@@ -67,48 +65,11 @@ struct simple_node {
   {
     assert(!prefix.empty());
     const uint8_t first_char = static_cast<uint8_t>(prefix[0]);
-    
+
     // Update bitmap
     set_bitmap(first_char);
-    
-    if (prefixes.size() + prefix.size() <= prefixes.capacity())
-    {
-      // Fast insertion without relocation
-      const std::string_view newprefix {prefixes.data() + prefixes.size(),
-                                        prefix.size()};
-      prefixes.insert(prefixes.end(), prefix.begin(), prefix.end());
-      child_chars.push_back(first_char);
-      children.emplace_back(newprefix, child);
-    }
-    else
-    {
-      // Rebuild storage for prefixes
-      std::vector<char> newprefixes;
-      newprefixes.reserve(prefixes.size() + prefix.size());
-      newprefixes.insert(newprefixes.end(), prefixes.begin(), prefixes.end());
-      newprefixes.insert(newprefixes.end(), prefix.begin(), prefix.end());
-
-      // Update pointers in old children
-      for (auto &[chldprefix, chld] : children)
-      {
-        const size_t chldprefixoffs = chldprefix.data() - prefixes.data();
-        const size_t chldprefixleng = chldprefix.size();
-        const std::string_view newchldprefix {newprefixes.data() + chldprefixoffs,
-                                              chldprefixleng};
-        chldprefix = newchldprefix;
-      }
-
-      // Insert new child
-      const size_t newprefixoffs = prefixes.size();
-      const size_t newprefixleng = prefix.size();
-      const std::string_view newprefix {newprefixes.data() + newprefixoffs,
-                                        newprefixleng};
-      child_chars.push_back(first_char);
-      children.emplace_back(newprefix, child);
-
-      // Update prefixes storage
-      prefixes = std::move(newprefixes);
-    }
+    child_chars.push_back(first_char);
+    children.emplace_back(prefix, child);
   }
 };
 
@@ -261,14 +222,15 @@ struct insert_handle {
   simple_node *
   split_prefix(simple_node *node, size_t k, const std::string_view &input)
   {
-    const auto [prefixA, B] = node->children[k];
+    const auto &[prefixA, B] = node->children[k];
 
     const std::string_view prefixAdash = input;
-    const std::string_view prefixAdashdash = prefixA.substr(input.size());
+    const std::string_view prefixAdashdash =
+        std::string_view(prefixA).substr(input.size());
     simple_node *Adash = new simple_node;
     Adash->add_child(prefixAdashdash, B);
 
-    node->children[k].first.remove_suffix(prefixA.size() - input.size());
+    node->children[k].first = prefixAdash;
     node->children[k].second = Adash;
     return node;
   }
@@ -306,13 +268,13 @@ struct insert_handle {
   partial_match(simple_node *node, size_t k, const std::string_view &input,
                 size_t diffpos)
   {
-    const auto [prefixB, D] = node->children[k];
+    const auto &[prefixB, D] = node->children[k];
 
-    const std::string_view prefixBstar = prefixB.substr(0, diffpos);
-    const std::string_view prefixBdash = prefixB.substr(diffpos);
+    const std::string_view prefixBstar = std::string_view(prefixB).substr(0, diffpos);
+    const std::string_view prefixBdash = std::string_view(prefixB).substr(diffpos);
     const std::string_view prefixBdashdash = input.substr(diffpos);
     simple_node *Bstar = new simple_node;
-    Bstar->reserve(2, prefixBdash.size() + prefixBdashdash.size());
+    Bstar->reserve(2);
     Bstar->add_child(prefixBdash, D);
     Bstar->add_child(prefixBdashdash, new simple_node);
 
