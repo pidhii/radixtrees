@@ -6,7 +6,7 @@
 int
 main()
 {
-  arxt::simple_node node;
+  arxt::radix256_node node;
   arxt::insert(&node, "asdfasdf");
   arxt::insert(&node, "asdfqwer");
 

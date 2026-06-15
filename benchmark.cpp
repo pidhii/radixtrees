@@ -162,7 +162,7 @@ void benchmark_insert_comparison(unsigned base_seed, size_t repetitions) {
     
     // RadixTree
     double radix_time = run_repeated_benchmark([&]() {
-      arxt::simple_node radix_root;
+      arxt::radix256_node radix_root;
       BenchmarkTimer timer;
       timer.start();
       for (const auto& str : strings) {
@@ -202,7 +202,7 @@ void benchmark_insert_comparison(unsigned base_seed, size_t repetitions) {
     auto strings = generate_prefixed_strings(10000, base_seed + 1);
     
     double radix_time = run_repeated_benchmark([&]() {
-      arxt::simple_node radix_root;
+      arxt::radix256_node radix_root;
       BenchmarkTimer timer;
       timer.start();
       for (const auto& str : strings) {
@@ -240,7 +240,7 @@ void benchmark_insert_comparison(unsigned base_seed, size_t repetitions) {
     auto strings = generate_random_strings(10000, 3, 8, base_seed + 2);
     
     double radix_time = run_repeated_benchmark([&]() {
-      arxt::simple_node radix_root;
+      arxt::radix256_node radix_root;
       BenchmarkTimer timer;
       timer.start();
       for (const auto& str : strings) {
@@ -278,7 +278,7 @@ void benchmark_insert_comparison(unsigned base_seed, size_t repetitions) {
     auto strings = generate_random_strings(5000, 30, 60, base_seed + 3);
     
     double radix_time = run_repeated_benchmark([&]() {
-      arxt::simple_node radix_root;
+      arxt::radix256_node radix_root;
       BenchmarkTimer timer;
       timer.start();
       for (const auto& str : strings) {
@@ -316,7 +316,7 @@ void benchmark_insert_comparison(unsigned base_seed, size_t repetitions) {
     auto strings = generate_random_strings(100000, 10, 25, base_seed + 4);
     
     double radix_time = run_repeated_benchmark([&]() {
-      arxt::simple_node radix_root;
+      arxt::radix256_node radix_root;
       BenchmarkTimer timer;
       timer.start();
       for (const auto& str : strings) {
@@ -360,7 +360,7 @@ void benchmark_find_hit_comparison(unsigned base_seed, size_t repetitions) {
     auto strings = generate_random_strings(10000, 5, 20, base_seed + 10);
     
     // Build containers
-    arxt::simple_node radix_root;
+    arxt::radix256_node radix_root;
     std::set<std::string> set_container;
     std::unordered_set<std::string> unordered_container;
     
@@ -414,7 +414,7 @@ void benchmark_find_hit_comparison(unsigned base_seed, size_t repetitions) {
   {
     auto strings = generate_prefixed_strings(10000, base_seed + 11);
     
-    arxt::simple_node radix_root;
+    arxt::radix256_node radix_root;
     std::set<std::string> set_container;
     std::unordered_set<std::string> unordered_container;
     
@@ -465,7 +465,7 @@ void benchmark_find_hit_comparison(unsigned base_seed, size_t repetitions) {
   {
     auto strings = generate_random_strings(10000, 3, 8, base_seed + 12);
     
-    arxt::simple_node radix_root;
+    arxt::radix256_node radix_root;
     std::set<std::string> set_container;
     std::unordered_set<std::string> unordered_container;
     
@@ -516,7 +516,7 @@ void benchmark_find_hit_comparison(unsigned base_seed, size_t repetitions) {
   {
     auto strings = generate_random_strings(100000, 10, 25, base_seed + 13);
     
-    arxt::simple_node radix_root;
+    arxt::radix256_node radix_root;
     std::set<std::string> set_container;
     std::unordered_set<std::string> unordered_container;
     
@@ -580,7 +580,7 @@ void benchmark_find_miss_comparison(unsigned base_seed, size_t repetitions) {
     auto tree_strings = generate_random_strings(10000, 5, 20, base_seed + 20);
     auto missing_strings = generate_missing_strings(tree_strings, 5000, base_seed + 100);
     
-    arxt::simple_node radix_root;
+    arxt::radix256_node radix_root;
     std::set<std::string> set_container;
     std::unordered_set<std::string> unordered_container;
     
@@ -632,7 +632,7 @@ void benchmark_find_miss_comparison(unsigned base_seed, size_t repetitions) {
     auto tree_strings = generate_prefixed_strings(10000, base_seed + 21);
     auto missing_strings = generate_missing_strings(tree_strings, 5000, base_seed + 200);
     
-    arxt::simple_node radix_root;
+    arxt::radix256_node radix_root;
     std::set<std::string> set_container;
     std::unordered_set<std::string> unordered_container;
     
@@ -683,7 +683,7 @@ void benchmark_find_miss_comparison(unsigned base_seed, size_t repetitions) {
   {
     auto tree_strings = generate_prefixed_strings(10000, base_seed + 22);
     
-    arxt::simple_node radix_root;
+    arxt::radix256_node radix_root;
     std::set<std::string> set_container;
     std::unordered_set<std::string> unordered_container;
     
@@ -741,7 +741,7 @@ void benchmark_find_miss_comparison(unsigned base_seed, size_t repetitions) {
     auto tree_strings = generate_random_strings(100000, 10, 25, base_seed + 23);
     auto missing_strings = generate_missing_strings(tree_strings, 10000, base_seed + 300);
     
-    arxt::simple_node radix_root;
+    arxt::radix256_node radix_root;
     std::set<std::string> set_container;
     std::unordered_set<std::string> unordered_container;
     
