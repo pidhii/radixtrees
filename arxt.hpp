@@ -4,30 +4,77 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <cstdint>
+#include <cstring>
 
 
 namespace arxt {
 
 struct simple_node {
   std::vector<char> prefixes; // storage for child prefixes
+  uint64_t bitmap[4] = {0, 0, 0, 0}; // 256 bits to track which children exist
+  std::vector<uint8_t> child_chars; // first characters of each child (in order)
   std::vector<std::pair<std::string_view, simple_node *>> children; // children
+
+  // Check if a child with given first character exists
+  [[nodiscard]] bool
+  has_child(uint8_t c) const
+  {
+    const size_t word_idx = c / 64;
+    const size_t bit_idx = c % 64;
+    return (bitmap[word_idx] & (1ULL << bit_idx)) != 0;
+  }
+
+  // Set bitmap bit for given character
+  void
+  set_bitmap(uint8_t c)
+  {
+    const size_t word_idx = c / 64;
+    const size_t bit_idx = c % 64;
+    bitmap[word_idx] |= (1ULL << bit_idx);
+  }
+
+  // Find index of child with given first character
+  // Returns -1 if not found
+  [[nodiscard]] int
+  find_child_index(uint8_t c) const
+  {
+    if (not has_child(c))
+      return -1;
+
+    // Linear search through child_chars to find the index
+    for (size_t i = 0; i < child_chars.size(); ++i)
+    {
+      if (child_chars[i] == c)
+        return static_cast<int>(i);
+    }
+    return -1;
+  }
 
   void
   reserve(size_t nchildren, size_t ndata)
   {
     prefixes.reserve(ndata);
+    child_chars.reserve(nchildren);
     children.reserve(nchildren);
   }
 
   void
   add_child(std::string_view prefix, simple_node *child)
   {
+    assert(!prefix.empty());
+    const uint8_t first_char = static_cast<uint8_t>(prefix[0]);
+    
+    // Update bitmap
+    set_bitmap(first_char);
+    
     if (prefixes.size() + prefix.size() <= prefixes.capacity())
     {
       // Fast insertion without relocation
       const std::string_view newprefix {prefixes.data() + prefixes.size(),
                                         prefix.size()};
       prefixes.insert(prefixes.end(), prefix.begin(), prefix.end());
+      child_chars.push_back(first_char);
       children.emplace_back(newprefix, child);
     }
     else
@@ -53,6 +100,7 @@ struct simple_node {
       const size_t newprefixleng = prefix.size();
       const std::string_view newprefix {newprefixes.data() + newprefixoffs,
                                         newprefixleng};
+      child_chars.push_back(first_char);
       children.emplace_back(newprefix, child);
 
       // Update prefixes storage
@@ -98,23 +146,19 @@ struct impl {
     if (input.empty())
       return handle.input_exhausted(node);
 
-    // Find child that has a chance to match the input (there can be at most one)
-    const auto it =
-        std::ranges::find_if(as_cref(node).children, [input](const auto &x) -> bool {
-          const auto &[prefix, _] = x;
-          assert(not prefix.empty());
-          assert(not input.empty());
-          return input[0] == prefix[0];
-        });
-
-    // Stop search if nothing matches
-    if (it == node->children.end())
+    // Find the child index
+    const uint8_t first_char = static_cast<uint8_t>(input[0]);
+    const int idx = node->find_child_index(first_char);
+    if (idx < 0)
       return handle.no_match(node, input);
-
+    
     // Access child's data and compare its prefix to the input string
-    const auto &[prefix, chld] = *it;
+    const auto &[prefix, chld] = node->children[idx];
+    assert(!prefix.empty());
+    assert(prefix[0] == input[0]);
+    
     const size_t diffpos = compare(input, prefix);
-    assert(diffpos > 0); // at the first characters will match
+    assert(diffpos > 0); // at least the first characters will match
 
     // Full match:
     // a) length(input) > length(prefix), or
@@ -133,17 +177,17 @@ struct impl {
           if (newchld == chld)
             return node;
           else
-            return handle.update_child(node, it - node->children.begin(), newchld);
+            return handle.update_child(node, idx, newchld);
         }
         else
           return traverse(chld, input, handle);
       }
       else
-        return handle.split_prefix(node, it - node->children.begin(), input);
+        return handle.split_prefix(node, idx, input);
     }
     // Partial match:
     else
-      return handle.partial_match(node, it - node->children.begin(), input, diffpos);
+      return handle.partial_match(node, idx, input, diffpos);
   }
 }; // struct arxt::traverse
 
