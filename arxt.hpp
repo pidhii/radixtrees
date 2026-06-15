@@ -87,20 +87,13 @@ compare(std::string_view a, std::string_view b)
 }
 
 
-template <typename T>
-const T &
-as_cref(const T *x)
-{ return *x; }
-
-template <typename T>
-const T &
-as_cref(const T &x) requires (not std::is_pointer_v<T>)
-{ return x; }
-
-
 template <typename Traits>
-struct impl {
+struct impl: Traits {
   using node_pointer = Traits::node_pointer;
+  using child_index = Traits::child_index;
+  using Traits::find_child;
+  using Traits::get_child;
+  using Traits::has_index;
 
   template <typename EventHandle>
   node_pointer
@@ -111,13 +104,12 @@ struct impl {
       return handle.input_exhausted(node);
 
     // Find the child index
-    const uint8_t first_char = static_cast<uint8_t>(input[0]);
-    const int idx = node->find_child_index(first_char);
-    if (idx < 0)
+    const child_index idx = find_child(node, input);
+    if (not has_index(node, idx))
       return handle.no_match(node, input);
     
     // Access child's data and compare its prefix to the input string
-    const auto &[prefix, chld] = node->children[idx];
+    const auto &[prefix, chld] = get_child(node, idx);
     assert(!prefix.empty());
     assert(prefix[0] == input[0]);
     
@@ -158,6 +150,19 @@ struct impl {
 
 struct simple_node_traits {
   using node_pointer = simple_node *;
+  using child_index = int;
+
+  bool
+  has_index(node_pointer, child_index idx) const
+  { return idx >= 0; }
+
+  child_index
+  find_child(node_pointer node, std::string_view input) const
+  { return node->find_child_index(input[0]); }
+
+  std::pair<std::string_view, node_pointer>
+  get_child(node_pointer node, child_index idx) const
+  { return node->children[idx]; }
 }; // struct simple_node_traits
 
 
