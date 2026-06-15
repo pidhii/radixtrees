@@ -16,6 +16,9 @@ struct simple_node {
   std::vector<uint8_t> child_chars; // first characters of each child (in order)
   std::vector<std::pair<std::string_view, simple_node *>> children; // children
 
+  ~simple_node()
+  { for (const auto &[_, child] : children) delete child; }
+
   // Check if a child with given first character exists
   [[nodiscard]] bool
   has_child(uint8_t c) const
