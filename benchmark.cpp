@@ -1,4 +1,5 @@
-#include "arxt.hpp"
+#include "include/arxt/radix256.hpp"
+#include "include/arxt/radix256dense.hpp"
 
 #include <iostream>
 #include <vector>
@@ -11,6 +12,11 @@
 #include <set>
 #include <unordered_set>
 
+
+#ifndef NODE_TYPE
+# warning "NODE_TYPE not specified"
+# define NODE_TYPE arxt::radix256_node
+#endif
 
 // Benchmark utilities
 class BenchmarkTimer {
@@ -278,7 +284,7 @@ void benchmark_insert_comparison(unsigned base_seed, size_t repetitions) {
     auto strings = generate_random_strings(5000, 30, 60, base_seed + 3);
     
     double radix_time = run_repeated_benchmark([&]() {
-      arxt::radix256_node radix_root;
+      NODE_TYPE radix_root;
       BenchmarkTimer timer;
       timer.start();
       for (const auto& str : strings) {
@@ -316,7 +322,7 @@ void benchmark_insert_comparison(unsigned base_seed, size_t repetitions) {
     auto strings = generate_random_strings(100000, 10, 25, base_seed + 4);
     
     double radix_time = run_repeated_benchmark([&]() {
-      arxt::radix256_node radix_root;
+      NODE_TYPE radix_root;
       BenchmarkTimer timer;
       timer.start();
       for (const auto& str : strings) {
@@ -360,7 +366,7 @@ void benchmark_find_hit_comparison(unsigned base_seed, size_t repetitions) {
     auto strings = generate_random_strings(10000, 5, 20, base_seed + 10);
     
     // Build containers
-    arxt::radix256_node radix_root;
+    NODE_TYPE radix_root;
     std::set<std::string> set_container;
     std::unordered_set<std::string> unordered_container;
     
@@ -414,7 +420,7 @@ void benchmark_find_hit_comparison(unsigned base_seed, size_t repetitions) {
   {
     auto strings = generate_prefixed_strings(10000, base_seed + 11);
     
-    arxt::radix256_node radix_root;
+    NODE_TYPE radix_root;
     std::set<std::string> set_container;
     std::unordered_set<std::string> unordered_container;
     
@@ -465,7 +471,7 @@ void benchmark_find_hit_comparison(unsigned base_seed, size_t repetitions) {
   {
     auto strings = generate_random_strings(10000, 3, 8, base_seed + 12);
     
-    arxt::radix256_node radix_root;
+    NODE_TYPE radix_root;
     std::set<std::string> set_container;
     std::unordered_set<std::string> unordered_container;
     
@@ -516,7 +522,7 @@ void benchmark_find_hit_comparison(unsigned base_seed, size_t repetitions) {
   {
     auto strings = generate_random_strings(100000, 10, 25, base_seed + 13);
     
-    arxt::radix256_node radix_root;
+    NODE_TYPE radix_root;
     std::set<std::string> set_container;
     std::unordered_set<std::string> unordered_container;
     
@@ -580,7 +586,7 @@ void benchmark_find_miss_comparison(unsigned base_seed, size_t repetitions) {
     auto tree_strings = generate_random_strings(10000, 5, 20, base_seed + 20);
     auto missing_strings = generate_missing_strings(tree_strings, 5000, base_seed + 100);
     
-    arxt::radix256_node radix_root;
+    NODE_TYPE radix_root;
     std::set<std::string> set_container;
     std::unordered_set<std::string> unordered_container;
     
@@ -632,7 +638,7 @@ void benchmark_find_miss_comparison(unsigned base_seed, size_t repetitions) {
     auto tree_strings = generate_prefixed_strings(10000, base_seed + 21);
     auto missing_strings = generate_missing_strings(tree_strings, 5000, base_seed + 200);
     
-    arxt::radix256_node radix_root;
+    NODE_TYPE radix_root;
     std::set<std::string> set_container;
     std::unordered_set<std::string> unordered_container;
     
@@ -683,7 +689,7 @@ void benchmark_find_miss_comparison(unsigned base_seed, size_t repetitions) {
   {
     auto tree_strings = generate_prefixed_strings(10000, base_seed + 22);
     
-    arxt::radix256_node radix_root;
+    NODE_TYPE radix_root;
     std::set<std::string> set_container;
     std::unordered_set<std::string> unordered_container;
     
@@ -741,7 +747,7 @@ void benchmark_find_miss_comparison(unsigned base_seed, size_t repetitions) {
     auto tree_strings = generate_random_strings(100000, 10, 25, base_seed + 23);
     auto missing_strings = generate_missing_strings(tree_strings, 10000, base_seed + 300);
     
-    arxt::radix256_node radix_root;
+    NODE_TYPE radix_root;
     std::set<std::string> set_container;
     std::unordered_set<std::string> unordered_container;
     
