@@ -1,19 +1,23 @@
 #pragma once
 
 #include "arxt.hpp"
+#include "utilities.hpp"
 
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <optional>
 
 
 namespace arxt {
 
 
+template <typename T = monostate>
 struct radix256_node {
   uint64_t bitmap[4] = {0, 0, 0, 0}; // 256 bits to track which children exist
   std::vector<uint8_t> child_chars; // first characters of each child (in order)
   std::vector<std::pair<std::string, radix256_node *>> children; // children
+  std::optional<T> value;
 
   ~radix256_node()
   { for (const auto &[_, child] : children) delete child; }
@@ -74,9 +78,15 @@ struct radix256_node {
 };
 
 
+template <typename T>
 struct radix256_traits {
-  using node_pointer = radix256_node *;
+  using sequence_type = std::string_view;
+  using node_pointer = radix256_node<T> *;
   using child_index = int;
+
+  sequence_type
+  splice(sequence_type s, size_t a, size_t b) const
+  { return s.substr(a, b - a); }
 
   bool
   has_index(node_pointer, child_index idx) const
@@ -95,14 +105,18 @@ struct radix256_traits {
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                 find
-struct radix256_find_handle: private radix256_traits {
+template <typename T>
+struct radix256_find_handle: private radix256_traits<T> {
+  using node_pointer = radix256_traits<T>::node_pointer;
+  using child_index = radix256_traits<T>::child_index;
+
   static constexpr bool may_mutate = false;
 
   node_pointer result = nullptr;
 
   node_pointer
   input_exhausted(node_pointer node)
-  { result = node; return node; }
+  { if (node->value.has_value()) result = node; return node; }
 
   node_pointer
   no_match(node_pointer node, const std::string_view &)
@@ -118,12 +132,12 @@ struct radix256_find_handle: private radix256_traits {
 };
 
 
-
-inline radix256_node *
-find(radix256_node *node, std::string_view data)
+template <typename T>
+inline radix256_node<T> *
+find(radix256_node<T> *node, std::string_view data)
 {
-  radix256_find_handle handle;
-  impl<radix256_traits>().traverse(node, data, handle);
+  radix256_find_handle<T> handle;
+  impl<radix256_traits<T>>().traverse(node, data, handle);
   return handle.result;
 }
 
@@ -131,7 +145,11 @@ find(radix256_node *node, std::string_view data)
 
 ////////////////////////////////////////////////////////////////////////////////
 //                               insert
-struct radix256_insert_handle: private radix256_traits {
+template <typename T>
+struct radix256_insert_handle: private radix256_traits<T> {
+  using node_pointer = radix256_traits<T>::node_pointer;
+  using child_index = radix256_traits<T>::child_index;
+
   static constexpr bool may_mutate = false;
 
   node_pointer result = nullptr;
@@ -148,86 +166,65 @@ struct radix256_insert_handle: private radix256_traits {
     return node;
   }
 
-  // Split k'th child, A, into two nodes:
-  //
-  //         A -> B    into    A' -> A" -> B
-  //
-  // where  prefix(A) = prefix, prefix(A') = input, prefix(A") = prefix\input.
   node_pointer
   split_prefix(node_pointer node, child_index k, const std::string_view &input)
   {
-    const auto &[prefixA, B] = node->children[k];
+    const auto &[B, b] = node->children[k];
 
-    const std::string_view prefixAdash = input;
-    const std::string_view prefixAdashdash =
-        std::string_view(prefixA).substr(input.size());
-    node_pointer Adash = new radix256_node;
-    Adash->add_child(prefixAdashdash, B);
+    const std::string_view Bstar = input;
+    const std::string_view Bdash = std::string_view(B).substr(input.size());
+    node_pointer bstar = new radix256_node;
+    bstar->add_child(Bdash, b);
 
-    node->children[k].first = prefixAdash;
-    node->children[k].second = Adash;
+    node->children[k].first = Bstar;
+    node->children[k].second = bstar;
 
-    result = node;
+    result = bstar;
     return node;
   }
 
-  // Partial match:
-  //   Let data[0:diffpos) = prefix(B)[0:diffpos):
-  // 
-  //                       [A, B, C]
-  //                           |
-  //                           +- D
-  // 
-  // 
-  //                       [A, B*, C]
-  //                           |
-  //                           +- [B', B"]
-  //                               |
-  //                               +- D
-  // 
-  //   prefix(B*) = prefix(B)[0:diffpos)
-  //   prefix(B') = prefix(B)[diffpos:...)
-  //   prefix(B") = data[diffpos:...)
-  // 
-  //   => string(D) = prefix(B*) + prefix(B') + prefix(D)
-  //                 = prefix(B)[0:diffpos) + prefix(B)[diffpos:...) + prefix(D)
-  //                 = prefix(B) + prefix(D)   ✓
-  // 
-  //   => prefix(B') != prefix(B") by definition of diffpos   ✓
-  // 
-  //   => string(B") = prefix(B*) + prefix(B")
-  //                 = prefix(B)[0:diffpos) + data[diffpos:...)
-  //                 = data[0:diffpos) + data[diffpos:...)
-  //                 = data   ✓
-  //
   node_pointer
   partial_match(node_pointer node, child_index k, const std::string_view &input,
                 size_t diffpos)
   {
-    const auto &[prefixB, D] = node->children[k];
+    const auto &[B, b] = node->children[k];
 
-    const std::string_view prefixBstar = std::string_view(prefixB).substr(0, diffpos);
-    const std::string_view prefixBdash = std::string_view(prefixB).substr(diffpos);
-    const std::string_view prefixBdashdash = input.substr(diffpos);
-    node_pointer Bstar = new radix256_node;
-    node_pointer Bdashdash = new radix256_node;
-    Bstar->reserve(2);
-    Bstar->add_child(prefixBdash, D);
-    Bstar->add_child(prefixBdashdash, Bdashdash);
+    const std::string_view Bstar = std::string_view(B).substr(0, diffpos);
+    const std::string_view Bdash = std::string_view(B).substr(diffpos);
+    const std::string_view Bdashdash = input.substr(diffpos);
+    node_pointer bstar = new radix256_node;
+    node_pointer e = new radix256_node;
+    bstar->reserve(2);
+    bstar->add_child(Bdash, b);
+    bstar->add_child(Bdashdash, e);
 
-    node->children[k].first = prefixBstar;
-    node->children[k].second = Bstar;
+    node->children[k].first = Bstar;
+    node->children[k].second = bstar;
 
-    result = Bdashdash;
+    result = e;
     return node;
   }
 };
 
-inline radix256_node *
-insert(radix256_node *node, std::string_view data)
+
+template <typename T>
+inline radix256_node<T> *
+insert(radix256_node<T> *node, std::string_view data)
 {
-  radix256_insert_handle handle;
-  impl<radix256_traits>().traverse(node, data, handle);
+  radix256_insert_handle<T> handle;
+  impl<radix256_traits<T>>().traverse(node, data, handle);
+  handle.result->value.emplace();
+  return handle.result;
+}
+
+
+template <typename T, typename ...Args>
+inline radix256_node<T> *
+insert(radix256_node<T> *node, std::string_view data, Args&& ...args)
+{
+  radix256_insert_handle<T> handle;
+  impl<radix256_traits<T>>().traverse(node, data, handle);
+  handle.result->value.emplace(std::forward<Args>(args)...);
   return handle.result;
 }
 

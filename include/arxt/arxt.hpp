@@ -1,15 +1,22 @@
 #pragma once
 
 #include <cassert>
+#include <concepts>
 #include <string>
-#include <string_view>
 
 
 namespace arxt {
 
 
+template <typename T>
+concept prefixable_sequence =
+    requires(T a) { { a.size() } -> std::convertible_to<size_t>; } and
+    requires(T a, size_t k) { { a[k] } -> std::equality_comparable; };
+
+
+template <prefixable_sequence T>
 [[nodiscard]] inline size_t
-compare(std::string_view a, std::string_view b)
+compare(const T &a, const T &b)
 {
   for (size_t i = 0; i < std::min(a.size(), b.size()); ++i)
   {
@@ -22,18 +29,22 @@ compare(std::string_view a, std::string_view b)
 
 template <typename Traits>
 struct impl: Traits {
+  using sequence_type = Traits::sequence_type;
   using node_pointer = Traits::node_pointer;
   using child_index = Traits::child_index;
   using Traits::find_child;
   using Traits::get_child;
   using Traits::has_index;
+  using Traits::splice;
+
+  static_assert(prefixable_sequence<sequence_type>);
 
   template <typename EventHandle>
   node_pointer
-  traverse(node_pointer node, std::string_view &input, EventHandle &handle)
+  traverse(node_pointer node, const sequence_type &input, EventHandle &handle)
   {
     // Handle exhausted input string
-    if (input.empty())
+    if (input.size() == 0)
       return handle.input_exhausted(node);
 
     // Find the child index
@@ -43,7 +54,7 @@ struct impl: Traits {
     
     // Access child's data and compare its prefix to the input string
     const auto &[prefix, chld] = get_child(node, idx);
-    assert(!prefix.empty());
+    assert(prefix.size() != 0);
     assert(prefix[0] == input[0]);
     
     const size_t diffpos = compare(input, prefix);
@@ -59,17 +70,17 @@ struct impl: Traits {
     {
       if (input.size() >= prefix.size())
       {
-        input = input.substr(prefix.size());
+        const sequence_type &tail = splice(input, prefix.size(), input.size());
         if constexpr (EventHandle::may_mutate)
         {
-          node_pointer newchld = traverse(chld, input, handle);
+          node_pointer newchld = traverse(chld, tail, handle);
           if (newchld == chld)
             return node;
           else
             return handle.update_child(node, idx, newchld);
         }
         else
-          return traverse(chld, input, handle);
+          return traverse(chld, tail, handle);
       }
       else
         return handle.split_prefix(node, idx, input);
