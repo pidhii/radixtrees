@@ -1,5 +1,7 @@
-#include "include/arxt/radix256.hpp"
-#include "include/arxt/radix256dense.hpp"
+#include "radix256.hpp"
+#include "radix256dense.hpp"
+#include "pradix256dense.hpp"
+#include "radixhash.hpp"
 
 #include <iostream>
 #include <vector>
@@ -15,7 +17,7 @@
 
 #ifndef NODE_TYPE
 # warning "NODE_TYPE not specified"
-# define NODE_TYPE arxt::radix256_node
+# define NODE_TYPE pidhii::radix256dense_node
 #endif
 
 // Benchmark utilities
@@ -168,11 +170,11 @@ void benchmark_insert_comparison(unsigned base_seed, size_t repetitions) {
     
     // RadixTree
     double radix_time = run_repeated_benchmark([&]() {
-      arxt::radix256_node radix_root;
+      pidhii::radix256_node radix_root;
       BenchmarkTimer timer;
       timer.start();
       for (const auto& str : strings) {
-        arxt::insert(&radix_root, str);
+        pidhii::insert(&radix_root, str);
       }
       return timer.elapsed_microseconds();
     }, repetitions);
@@ -208,11 +210,11 @@ void benchmark_insert_comparison(unsigned base_seed, size_t repetitions) {
     auto strings = generate_prefixed_strings(10000, base_seed + 1);
     
     double radix_time = run_repeated_benchmark([&]() {
-      arxt::radix256_node radix_root;
+      pidhii::radix256_node radix_root;
       BenchmarkTimer timer;
       timer.start();
       for (const auto& str : strings) {
-        arxt::insert(&radix_root, str);
+        pidhii::insert(&radix_root, str);
       }
       return timer.elapsed_microseconds();
     }, repetitions);
@@ -246,11 +248,11 @@ void benchmark_insert_comparison(unsigned base_seed, size_t repetitions) {
     auto strings = generate_random_strings(10000, 3, 8, base_seed + 2);
     
     double radix_time = run_repeated_benchmark([&]() {
-      arxt::radix256_node radix_root;
+      pidhii::radix256_node radix_root;
       BenchmarkTimer timer;
       timer.start();
       for (const auto& str : strings) {
-        arxt::insert(&radix_root, str);
+        pidhii::insert(&radix_root, str);
       }
       return timer.elapsed_microseconds();
     }, repetitions);
@@ -288,7 +290,7 @@ void benchmark_insert_comparison(unsigned base_seed, size_t repetitions) {
       BenchmarkTimer timer;
       timer.start();
       for (const auto& str : strings) {
-        arxt::insert(&radix_root, str);
+        pidhii::insert(&radix_root, str);
       }
       return timer.elapsed_microseconds();
     }, repetitions);
@@ -326,7 +328,7 @@ void benchmark_insert_comparison(unsigned base_seed, size_t repetitions) {
       BenchmarkTimer timer;
       timer.start();
       for (const auto& str : strings) {
-        arxt::insert(&radix_root, str);
+        pidhii::insert(&radix_root, str);
       }
       return timer.elapsed_microseconds();
     }, repetitions);
@@ -371,7 +373,7 @@ void benchmark_find_hit_comparison(unsigned base_seed, size_t repetitions) {
     std::unordered_set<std::string> unordered_container;
     
     for (const auto& str : strings) {
-      arxt::insert(&radix_root, str);
+      pidhii::insert(&radix_root, str);
       set_container.insert(str);
       unordered_container.insert(str);
     }
@@ -382,7 +384,7 @@ void benchmark_find_hit_comparison(unsigned base_seed, size_t repetitions) {
       timer.start();
       size_t found = 0;
       for (const auto& str : strings) {
-        if (arxt::find(&radix_root, str) != nullptr) found++;
+        if (pidhii::find(&radix_root, str) != nullptr) found++;
       }
       assert(found == strings.size());
       return timer.elapsed_microseconds();
@@ -425,7 +427,7 @@ void benchmark_find_hit_comparison(unsigned base_seed, size_t repetitions) {
     std::unordered_set<std::string> unordered_container;
     
     for (const auto& str : strings) {
-      arxt::insert(&radix_root, str);
+      pidhii::insert(&radix_root, str);
       set_container.insert(str);
       unordered_container.insert(str);
     }
@@ -435,7 +437,7 @@ void benchmark_find_hit_comparison(unsigned base_seed, size_t repetitions) {
       timer.start();
       size_t found = 0;
       for (const auto& str : strings) {
-        if (arxt::find(&radix_root, str) != nullptr) found++;
+        if (pidhii::find(&radix_root, str) != nullptr) found++;
       }
       assert(found == strings.size());
       return timer.elapsed_microseconds();
@@ -476,7 +478,7 @@ void benchmark_find_hit_comparison(unsigned base_seed, size_t repetitions) {
     std::unordered_set<std::string> unordered_container;
     
     for (const auto& str : strings) {
-      arxt::insert(&radix_root, str);
+      pidhii::insert(&radix_root, str);
       set_container.insert(str);
       unordered_container.insert(str);
     }
@@ -486,7 +488,7 @@ void benchmark_find_hit_comparison(unsigned base_seed, size_t repetitions) {
       timer.start();
       size_t found = 0;
       for (const auto& str : strings) {
-        if (arxt::find(&radix_root, str) != nullptr) found++;
+        if (pidhii::find(&radix_root, str) != nullptr) found++;
       }
       assert(found == strings.size());
       return timer.elapsed_microseconds();
@@ -527,7 +529,7 @@ void benchmark_find_hit_comparison(unsigned base_seed, size_t repetitions) {
     std::unordered_set<std::string> unordered_container;
     
     for (const auto& str : strings) {
-      arxt::insert(&radix_root, str);
+      pidhii::insert(&radix_root, str);
       set_container.insert(str);
       unordered_container.insert(str);
     }
@@ -543,7 +545,7 @@ void benchmark_find_hit_comparison(unsigned base_seed, size_t repetitions) {
       timer.start();
       size_t found = 0;
       for (const auto& str : sample) {
-        if (arxt::find(&radix_root, str) != nullptr) found++;
+        if (pidhii::find(&radix_root, str) != nullptr) found++;
       }
       assert(found == sample.size());
       return timer.elapsed_microseconds();
@@ -591,7 +593,7 @@ void benchmark_find_miss_comparison(unsigned base_seed, size_t repetitions) {
     std::unordered_set<std::string> unordered_container;
     
     for (const auto& str : tree_strings) {
-      arxt::insert(&radix_root, str);
+      pidhii::insert(&radix_root, str);
       set_container.insert(str);
       unordered_container.insert(str);
     }
@@ -601,7 +603,7 @@ void benchmark_find_miss_comparison(unsigned base_seed, size_t repetitions) {
       timer.start();
       size_t not_found = 0;
       for (const auto& str : missing_strings) {
-        if (arxt::find(&radix_root, str) == nullptr) not_found++;
+        if (pidhii::find(&radix_root, str) == nullptr) not_found++;
       }
       assert(not_found == missing_strings.size());
       return timer.elapsed_microseconds();
@@ -643,7 +645,7 @@ void benchmark_find_miss_comparison(unsigned base_seed, size_t repetitions) {
     std::unordered_set<std::string> unordered_container;
     
     for (const auto& str : tree_strings) {
-      arxt::insert(&radix_root, str);
+      pidhii::insert(&radix_root, str);
       set_container.insert(str);
       unordered_container.insert(str);
     }
@@ -653,7 +655,7 @@ void benchmark_find_miss_comparison(unsigned base_seed, size_t repetitions) {
       timer.start();
       size_t not_found = 0;
       for (const auto& str : missing_strings) {
-        if (arxt::find(&radix_root, str) == nullptr) not_found++;
+        if (pidhii::find(&radix_root, str) == nullptr) not_found++;
       }
       assert(not_found == missing_strings.size());
       return timer.elapsed_microseconds();
@@ -694,7 +696,7 @@ void benchmark_find_miss_comparison(unsigned base_seed, size_t repetitions) {
     std::unordered_set<std::string> unordered_container;
     
     for (const auto& str : tree_strings) {
-      arxt::insert(&radix_root, str);
+      pidhii::insert(&radix_root, str);
       set_container.insert(str);
       unordered_container.insert(str);
     }
@@ -710,7 +712,7 @@ void benchmark_find_miss_comparison(unsigned base_seed, size_t repetitions) {
       timer.start();
       size_t not_found = 0;
       for (const auto& str : similar_missing) {
-        if (arxt::find(&radix_root, str) == nullptr) not_found++;
+        if (pidhii::find(&radix_root, str) == nullptr) not_found++;
       }
       assert(not_found == similar_missing.size());
       return timer.elapsed_microseconds();
@@ -752,7 +754,7 @@ void benchmark_find_miss_comparison(unsigned base_seed, size_t repetitions) {
     std::unordered_set<std::string> unordered_container;
     
     for (const auto& str : tree_strings) {
-      arxt::insert(&radix_root, str);
+      pidhii::insert(&radix_root, str);
       set_container.insert(str);
       unordered_container.insert(str);
     }
@@ -762,7 +764,7 @@ void benchmark_find_miss_comparison(unsigned base_seed, size_t repetitions) {
       timer.start();
       size_t not_found = 0;
       for (const auto& str : missing_strings) {
-        if (arxt::find(&radix_root, str) == nullptr) not_found++;
+        if (pidhii::find(&radix_root, str) == nullptr) not_found++;
       }
       assert(not_found == missing_strings.size());
       return timer.elapsed_microseconds();

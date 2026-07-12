@@ -1,47 +1,43 @@
 #pragma once
 
 #include <cassert>
-#include <concepts>
 #include <string>
+#include <string_view>
 
 
-namespace arxt {
+namespace pidhii {
 
 
-template <typename T>
-concept prefixable_sequence =
-    requires(T a) { { a.size() } -> std::convertible_to<size_t>; } and
-    requires(T a, size_t k) { { a[k] } -> std::equality_comparable; };
-
-
-template <prefixable_sequence T>
+template <typename CharT, typename CharTraits = std::char_traits<CharT>>
 [[nodiscard]] inline size_t
-compare(const T &a, const T &b)
+compare(std::basic_string_view<CharT> a, std::basic_string_view<CharT> b)
 {
   for (size_t i = 0; i < std::min(a.size(), b.size()); ++i)
   {
-    if (a[i] != b[i])
+    if (not CharTraits::eq(a[i], b[i]))
       return i;
   }
   return std::string::npos;
 }
 
 
-template <typename Traits>
-struct impl: Traits {
-  using sequence_type = Traits::sequence_type;
-  using node_pointer = Traits::node_pointer;
-  using child_index = Traits::child_index;
-  using Traits::find_child;
-  using Traits::get_child;
-  using Traits::has_index;
-  using Traits::splice;
+template <
+  typename NodeTraits,
+  typename CharT,
+  typename CharTraits = std::char_traits<CharT>
+>
+struct impl: NodeTraits {
+  using node_pointer = NodeTraits::node_pointer;
+  using child_index = NodeTraits::child_index;
+  using NodeTraits::find_child;
+  using NodeTraits::get_child;
+  using NodeTraits::has_index;
 
-  static_assert(prefixable_sequence<sequence_type>);
+  using string_view = std::basic_string_view<CharT>;
 
   template <typename EventHandle>
   node_pointer
-  traverse(node_pointer node, const sequence_type &input, EventHandle &handle)
+  traverse(node_pointer node, string_view input, EventHandle &handle)
   {
     // Handle exhausted input string
     if (input.size() == 0)
@@ -57,7 +53,7 @@ struct impl: Traits {
     assert(prefix.size() != 0);
     assert(prefix[0] == input[0]);
     
-    const size_t diffpos = compare(input, prefix);
+    const size_t diffpos = compare<CharT, CharTraits>(input, prefix);
     assert(diffpos > 0); // at least the first characters will match
 
     // Full match:
@@ -70,7 +66,7 @@ struct impl: Traits {
     {
       if (input.size() >= prefix.size())
       {
-        const sequence_type &tail = splice(input, prefix.size(), input.size());
+        const string_view &tail = input.substr(prefix.size());
         if constexpr (EventHandle::may_mutate)
         {
           node_pointer newchld = traverse(chld, tail, handle);
@@ -89,7 +85,7 @@ struct impl: Traits {
     else
       return handle.partial_match(node, idx, input, diffpos);
   }
-}; // struct arxt::traverse
+}; // struct pidhii::impl
 
 
-}; // namespace arxt
+}; // namespace pidhii

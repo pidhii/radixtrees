@@ -10,44 +10,44 @@
 ====================================================================================================
 Test                                         RadixTree         std::set          std::unordered    
 ----------------------------------------------------------------------------------------------------
-Insert 10k random (5-20 chars)               992 μs           1400 μs          389 μs           
-  Speedup vs RadixTree                       1.00x             1.41x             0.39x             
-Insert 10k prefixed strings                  1037 μs          1479 μs          403 μs           
-  Speedup vs RadixTree                       1.00x             1.42x             0.38x             
-Insert 10k short (3-8 chars)                 823 μs           1380 μs          343 μs           
-  Speedup vs RadixTree                       1.00x             1.67x             0.41x             
-Insert 5k long (30-60 chars)                 261 μs           642 μs           316 μs           
-  Speedup vs RadixTree                       1.00x             2.45x             1.20x             
-Insert 100k random (10-25 chars)             8830 μs          24788 μs         6370 μs          
-  Speedup vs RadixTree                       1.00x             2.80x             0.72x             
+Insert 10k random (5-20 chars)               822 μs           1405 μs          414 μs           
+  Speedup vs RadixTree                       1.00x             1.70x             0.50x             
+Insert 10k prefixed strings                  872 μs           1489 μs          425 μs           
+  Speedup vs RadixTree                       1.00x             1.70x             0.48x             
+Insert 10k short (3-8 chars)                 775 μs           1343 μs          352 μs           
+  Speedup vs RadixTree                       1.00x             1.73x             0.45x             
+Insert 5k long (30-60 chars)                 244 μs           671 μs           233 μs           
+  Speedup vs RadixTree                       1.00x             2.74x             0.95x             
+Insert 100k random (10-25 chars)             9613 μs          23042 μs         6728 μs          
+  Speedup vs RadixTree                       1.00x             2.39x             0.69x             
 
 ====================================================================================================
   BENCHMARK 2: FIND PERFORMANCE COMPARISON (HIT - Strings Present)
 ====================================================================================================
 Test                                         RadixTree         std::set          std::unordered    
 ----------------------------------------------------------------------------------------------------
-Find 10k random (all present)                373 μs           1284 μs          237 μs           
-  Speedup vs RadixTree                       1.00x             3.44x             0.63x             
-Find 10k prefixed (all present)              463 μs           1268 μs          237 μs           
-  Speedup vs RadixTree                       1.00x             2.73x             0.51x             
-Find 10k short (all present)                 287 μs           1243 μs          196 μs           
-  Speedup vs RadixTree                       1.00x             4.32x             0.68x             
-Find 10k in 100k container                   627 μs           2299 μs          287 μs           
-  Speedup vs RadixTree                       1.00x             3.66x             0.45x             
+Find 10k random (all present)                407 μs           1365 μs          252 μs           
+  Speedup vs RadixTree                       1.00x             3.35x             0.61x             
+Find 10k prefixed (all present)              512 μs           1385 μs          250 μs           
+  Speedup vs RadixTree                       1.00x             2.70x             0.48x             
+Find 10k short (all present)                 316 μs           1290 μs          207 μs           
+  Speedup vs RadixTree                       1.00x             4.08x             0.65x             
+Find 10k in 100k container                   686 μs           2444 μs          300 μs           
+  Speedup vs RadixTree                       1.00x             3.55x             0.43x             
 
 ====================================================================================================
   BENCHMARK 3: FIND PERFORMANCE COMPARISON (MISS - Strings Missing)
 ====================================================================================================
 Test                                         RadixTree         std::set          std::unordered    
 ----------------------------------------------------------------------------------------------------
-Find 5k missing (random)                     54 μs            619 μs           98 μs            
-  Speedup vs RadixTree                       1.00x             11.3x             1.79x             
-Find 5k missing (prefixed)                   3 μs             207 μs           97 μs            
-  Speedup vs RadixTree                       1.00x             52.4x             24.6x             
-Find 5k similar-prefix missing               216 μs           611 μs           98 μs            
-  Speedup vs RadixTree                       1.00x             2.82x             0.45x             
-Find 10k missing in 100k container           206 μs           2329 μs          229 μs           
-  Speedup vs RadixTree                       1.00x             11.2x             1.10x             
+Find 5k missing (random)                     60 μs            658 μs           102 μs           
+  Speedup vs RadixTree                       1.00x             10.8x             1.68x             
+Find 5k missing (prefixed)                   3 μs             213 μs           102 μs           
+  Speedup vs RadixTree                       1.00x             62.1x             29.8x             
+Find 5k similar-prefix missing               244 μs           635 μs           100 μs           
+  Speedup vs RadixTree                       1.00x             2.59x             0.41x             
+Find 10k missing in 100k container           216 μs           2440 μs          242 μs           
+  Speedup vs RadixTree                       1.00x             11.2x             1.11x             
 
 ====================================================================================================
   Benchmark suite completed successfully!
