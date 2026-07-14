@@ -33,6 +33,7 @@ struct pradix256dense_node {
     pradix256dense_node *node = new pradix256dense_node {*this};
     for (const auto &[_, child] : children)
       child->ref();
+    node->rc = 0;
     return node;
   }
 
